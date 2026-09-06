@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — runway &amp; spending instrument</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="vendor/chart.umd.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="cockpit">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dial" aria-hidden="true"></span>
+      <div class="brand-text">
+        <span class="brand-name">Ledger</span>
+        <span class="brand-tag">personal runway instrument</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="balance-readout">
+        <span class="balance-label">Balance</span>
+        <span class="balance-value" id="hdrBalance">—</span>
+      </div>
+      <button class="btn-ghost" id="openSettings">Settings</button>
+    </div>
+  </header>
+
+  <section class="hero" id="heroSection">
+    <div class="hero-instrument">
+      <svg viewBox="0 0 240 150" class="gauge-svg" id="gaugeSvg">
+        <circle cx="120" cy="115" r="108" class="gauge-bezel"/>
+        <path d="M22,115 A98,98 0 0,1 218,115" class="gauge-track"/>
+        <path d="M22,115 A98,98 0 0,1 218,115" class="gauge-fill" id="gaugeFill"/>
+        <g id="gaugeTicks"></g>
+        <line x1="120" y1="115" x2="120" y2="35" class="gauge-needle" id="gaugeNeedle"/>
+        <circle cx="120" cy="115" r="7" class="gauge-hub"/>
+      </svg>
+      <div class="gauge-readout">
+        <span class="gauge-readout-value" id="gaugeDays">—</span>
+        <span class="gauge-readout-label">days of runway</span>
+      </div>
+    </div>
+    <div class="hero-text">
+      <div class="hero-label">Broke Date</div>
+      <div class="hero-date" id="brokeDateBig">—</div>
+      <div class="hero-sub" id="brokeDateSub">Add a few transactions to calibrate your first reading.</div>
+      <div class="hero-meta" id="heroMeta"></div>
+    </div>
+  </section>
+
+  <section class="runway-strip" aria-hidden="true">
+    <div class="runway-bed">
+      <div class="runway-centerline"></div>
+      <div class="runway-marker runway-marker--danger" style="left:11.6%"><span>7d</span></div>
+      <div class="runway-marker runway-marker--caution" style="left:23.3%"><span>14d</span></div>
+      <div class="runway-marker runway-marker--safe" style="left:50%"><span>30d</span></div>
+      <div class="runway-marker runway-marker--safe" style="left:100%"><span>60d+</span></div>
+      <div class="runway-token" id="runwayToken" style="left:0%">✈</div>
+    </div>
+  </section>
+
+  <section class="stats-row">
+    <div class="stat">
+      <div class="stat-label">Spent today</div>
+      <div class="stat-value" id="statToday">—</div>
+      <div class="stat-tick"></div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Spent this week</div>
+      <div class="stat-value" id="statWeek">—</div>
+      <div class="stat-tick"></div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Spent this month</div>
+      <div class="stat-value" id="statMonth">—</div>
+      <div class="stat-tick"></div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Income this month</div>
+      <div class="stat-value" id="statIncome">—</div>
+      <div class="stat-tick"></div>
+    </div>
+  </section>
+
+  <main class="grid">
+
+    <section class="col-ledger">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Log a transaction</h2>
+        </div>
+        <form id="txnForm" class="txn-form">
+          <div class="form-row">
+            <div class="segmented" id="typeSegment" role="tablist" aria-label="Transaction type">
+              <button type="button" class="segmented-btn is-active" data-type="expense" role="tab" aria-selected="true">Expense</button>
+              <button type="button" class="segmented-btn" data-type="income" role="tab" aria-selected="false">Income</button>
+            </div>
+            <label class="field-amount">
+              <span>Amount</span>
+              <input type="number" id="txnAmount" step="0.01" min="0.01" placeholder="0.00" required>
+            </label>
+            <label class="field-date">
+              <span>Date</span>
+              <input type="date" id="txnDate">
+            </label>
+          </div>
+          <div class="form-row">
+            <label class="grow">
+              <span>Description</span>
+              <input type="text" id="txnDesc" placeholder="e.g. Swiggy biryani, Uber to office, salary credit">
+            </label>
+            <label>
+              <span>Category</span>
+              <select id="txnCategory">
+                <option value="">Auto-detect</option>
+              </select>
+            </label>
+          </div>
+          <button type="submit" class="btn-primary">Log transaction</button>
+        </form>
+      </div>
+
+      <div class="panel panel-ledger">
+        <div class="panel-head">
+          <h2>Ledger</h2>
+          <span class="panel-sub" id="txnCount"></span>
+        </div>
+        <div class="ledger-controls">
+          <div class="segmented segmented-sm" id="filterSegment">
+            <button type="button" class="segmented-btn is-active" data-filter="all">All</button>
+            <button type="button" class="segmented-btn" data-filter="income">Income</button>
+            <button type="button" class="segmented-btn" data-filter="expense">Expense</button>
+          </div>
+          <input type="text" id="ledgerSearch" class="search-input" placeholder="Search description or category…">
+        </div>
+        <div class="ledger-list" id="ledgerList">
+          <div class="empty-state">No transactions yet. Log your first one above.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="col-side">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Where it's going</h2>
+          <span class="panel-sub">This month</span>
+        </div>
+        <div class="chart-wrap chart-wrap--pie">
+          <canvas id="categoryChart"></canvas>
+        </div>
+        <div class="empty-state" id="categoryEmpty" style="display:none;">No spending recorded this month yet.</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Spend vs. target</h2>
+          <span class="panel-sub">This month</span>
+        </div>
+        <div class="metric-block">
+          <div class="metric-value" id="monthlyBigNumber">—</div>
+          <div class="metric-delta" id="monthlyDelta">
+            <span id="monthlyDeltaArrow"></span>
+            <span id="monthlyDeltaAmount">—</span>
+            <span id="monthlyDeltaPct"></span>
+          </div>
+        </div>
+        <div class="metric-sub" id="monthlyDeltaLabel">Set a monthly budget to see variance</div>
+        <div class="chart-wrap chart-wrap--trend">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Warning panel</h2>
+          <span class="panel-sub" id="alertCount"></span>
+        </div>
+        <div class="alerts-list" id="alertsList">
+          <div class="empty-state empty-state--ok">All indicators nominal. No alerts right now.</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="foot-note">
+    Broke Date is a projection from your recent spending pattern, not a guarantee. It recalibrates every time you log a transaction.
+  </footer>
+</div>
+
+<aside class="drawer" id="settingsDrawer" aria-hidden="true">
+  <div class="drawer-panel">
+    <div class="drawer-head">
+      <h2>Balance &amp; budget</h2>
+      <button class="btn-icon" id="closeSettings" aria-label="Close">&times;</button>
+    </div>
+
+    <form id="settingsForm" class="drawer-form">
+      <label>
+        <span>Current available balance</span>
+        <input type="number" id="setBalance" step="0.01">
+        <small>Treated as your balance right now — the ledger adjusts it from here on.</small>
+      </label>
+      <label>
+        <span>Monthly budget (optional)</span>
+        <input type="number" id="setBudget" step="0.01">
+      </label>
+      <label>
+        <span>Currency symbol</span>
+        <input type="text" id="setCurrency" maxlength="3">
+      </label>
+      <button type="submit" class="btn-primary">Save</button>
+    </form>
+
+    <div class="drawer-divider"></div>
+
+    <h3 class="drawer-subhead">Per-category monthly limits</h3>
+    <form id="categoryBudgetForm" class="cb-form">
+      <select id="cbCategory"></select>
+      <input type="number" id="cbLimit" step="0.01" placeholder="Limit">
+      <button type="submit" class="btn-secondary">Set</button>
+    </form>
+    <div id="categoryBudgetList" class="cb-list"></div>
+  </div>
+</aside>
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+
+<div class="toast-root" id="toastRoot" aria-live="polite"></div>
+
+<script src="app.js?v=4"></script>
+</body>
+</html>
